@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fin-ed Investor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body{
+      font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+      background:linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);
+      min-height:100vh;
+    }
+    .card{
+      background:white;
+      border:1px solid #e2e8f0;
+      border-radius:1rem;
+      box-shadow:0 10px 30px rgba(15,23,42,.03);
+    }
+    .input{
+      width:100%;
+      border:1px solid #e2e8f0;
+      border-radius:.6rem;
+      padding:.55rem .75rem;
+      outline:none;
+      background:white;
+    }
+    .input:focus{
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.12);
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.4rem;
+      border-radius:.6rem;
+      padding:.55rem .85rem;
+      font-weight:500;
+    }
+    .btn-primary{ background:#1f2937; color:white; }
+    .btn-primary:hover{ background:#111827; }
+    .badge{
+      display:inline-flex;
+      background:#e2e8f0;
+      color:#0f172a;
+      border-radius:9999px;
+      padding:.15rem .6rem;
+      font-size:.7rem;
+    }
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.35);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+    }
+    .chart-shell{ position:relative; width:100%; }
+    .chart-shell canvas{ width:100% !important; display:block; }
+
+    /* ปุ่มเล็กในตาราง */
+    .table-action{
+      display:inline-flex; align-items:center; justify-content:center;
+      border-radius:9999px; padding:.25rem .55rem; font-size:.68rem; line-height:1;
+      white-space:nowrap; transition:.12s ease-out; cursor:pointer;
+    }
+    .table-action.edit{ background:rgba(99,102,241,.08); color:#4f46e5; }
+    .table-action.edit:hover{ background:rgba(99,102,241,.16); }
+    .table-action.delete{ background:rgba(244,63,94,.08); color:#e11d48; }
+    .table-action.delete:hover{ background:rgba(244,63,94,.16); }
+
+    /* Loader */
+    #globalLoader{
+      position:fixed; inset:0; background:rgba(248,250,252,.6);
+      display:none; align-items:center; justify-content:center; z-index:80; backdrop-filter:blur(1px);
+    }
+    #globalLoader .loader{ transform: scale(.9); }
+    .loader{ width:fit-content; height:fit-content; display:flex; align-items:center; justify-content:center; }
+    .truckWrapper{ width:200px; height:100px; display:flex; flex-direction:column; position:relative; align-items:center; justify-content:flex-end; overflow-x:hidden; }
+    .truckBody{ width:130px; margin-bottom:6px; animation:motion 1s linear infinite; }
+    @keyframes motion{ 0%{transform:translateY(0)} 50%{transform:translateY(3px)} 100%{transform:translateY(0)} }
+    .truckTires{ width:130px; display:flex; align-items:center; justify-content:space-between; padding:0 10px 0 15px; position:absolute; bottom:0; }
+    .truckTires svg{ width:24px; }
+    .road{ width:100%; height:1.5px; background:#282828; position:relative; bottom:0; border-radius:3px; }
+    .road::before{ content:""; position:absolute; width:20px; height:100%; background:#282828; right:-50%; border-radius:3px; animation:roadAnimation 1.4s linear infinite; border-left:10px solid #fff; }
+    .road::after{ content:""; position:absolute; width:10px; height:100%; background:#282828; right:-65%; border-radius:3px; animation:roadAnimation 1.4s linear infinite; border-left:4px solid #fff; }
+    .lampPost{ position:absolute; bottom:0; right:-90%; height:90px; animation:roadAnimation 1.4s linear infinite; }
+    @keyframes roadAnimation{ 0%{transform:translateX(0)} 100%{transform:translateX(-350px)} }
+
+    @media (max-width:768px){
+      .hide-mobile{ display:none; }
+      h1{ font-size:1.4rem; }
+      .input{ font-size:.78rem; }
+      .btn{ font-size:.75rem; }
+      table thead th{ font-size:.65rem; }
+      table tbody td{ font-size:.7rem; }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Loader -->
+  <div id="globalLoader">
+    <div class="loader">
+      <div class="truckWrapper">
+        <div class="truckBody">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 198 93" class="trucksvg">
+            <path stroke-width="3" stroke="#282828" fill="#F83D3D" d="M135 22.5H177.264C178.295 22.5 179.22 23.133 179.594 24.0939L192.33 56.8443C192.442 57.1332 192.5 57.4404 192.5 57.7504V89C192.5 90.3807 191.381 91.5 190 91.5H135C133.619 91.5 132.5 90.3807 132.5 89V25C132.5 23.6193 133.619 22.5 135 22.5Z"/>
+            <path stroke-width="3" stroke="#282828" fill="#7D7C7C" d="M146 33.5H181.741C182.779 33.5 183.709 34.1415 184.078 35.112L190.538 52.112C191.16 53.748 189.951 55.5 188.201 55.5H146C144.619 55.5 143.5 54.3807 143.5 53V36C143.5 34.6193 144.619 33.5 146 33.5Z"/>
+            <path stroke-width="2" stroke="#282828" fill="#282828" d="M150 65C150 65.39 149.763 65.8656 149.127 66.2893C148.499 66.7083 147.573 67 146.5 67C145.427 67 144.501 66.7083 143.873 66.2893C143.237 65.8656 143 65.39 143 65C143 64.61 143.237 64.1344 143.873 63.7107C144.501 63.2917 145.427 63 146.5 63C147.573 63 148.499 63.2917 149.127 63.7107C149.763 64.1344 150 64.61 150 65Z"/>
+            <rect stroke-width="2" stroke="#282828" fill="#FFFCAB" rx="1" height="7" width="5" y="63" x="187"/>
+            <rect stroke-width="2" stroke="#282828" fill="#282828" rx="1" height="11" width="4" y="81" x="193"/>
+            <rect stroke-width="3" stroke="#282828" fill="#DFDFDF" rx="2.5" height="90" width="121" y="1.5" x="6.5"/>
+            <rect stroke-width="2" stroke="#282828" fill="#DFDFDF" rx="2" height="4" width="6" y="84" x="1"/>
+          </svg>
+        </div>
+        <div class="truckTires">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 30 30" class="tiresvg">
+            <circle stroke-width="3" stroke="#282828" fill="#282828" r="13.5" cy="15" cx="15"/>
+            <circle fill="#DFDFDF" r="7" cy="15" cx="15"/>
+          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 30 30" class="tiresvg">
+            <circle stroke-width="3" stroke="#282828" fill="#282828" r="13.5" cy="15" cx="15"/>
+            <circle fill="#DFDFDF" r="7" cy="15" cx="15"/>
+          </svg>
+        </div>
+        <div class="road"></div>
+        <svg viewBox="0 0 453.459 453.459" class="lampPost" xmlns="http://www.w3.org/2000/svg">
+          <path d="M252.882,0c-37.781,0-68.686,29.953-70.245,67.358h-6.917v8.954c-26.109,2.163-45.463,10.011-45.463,19.366h9.993
+c-1.65,5.146-2.507,10.54-2.507,16.017c0,28.956,23.558,52.514,52.514,52.514c28.956,0,52.514-23.558,52.514-52.514
+c0-5.478-0.856-10.872-2.506-16.017h9.992c0-9.354-19.352-17.204-45.463-19.366v-8.954h-6.149C200.189,38.779,223.924,16,252.882,16
+c29.952,0,54.32,24.368,54.32,54.32c0,28.774-11.078,37.009-25.105,47.437c-17.444,12.968-37.216,27.667-37.216,78.884v113.914
+h-0.797c-5.068,0-9.174,4.108-9.174,9.177c0,2.844,1.293,5.383,3.321,7.066c-3.432,27.933-26.851,95.744-8.226,115.459v11.202h45.75
+v-11.202c18.625-19.715-4.794-87.527-8.227-115.459c2.029-1.683,3.322-4.223,3.322-7.066c0-5.068-4.107-9.177-9.176-9.177h-0.795
+V196.641c0-43.174,14.942-54.283,30.762-66.043c14.793-10.997,31.559-23.461,31.559-60.277C323.202,31.545,291.656,0,252.882,0z
+M232.77,111.694c0,23.442-19.071,42.514-42.514,42.514c-23.442,0-42.514-19.072-42.514-42.514c0-5.531,1.078-10.957,3.141-16.017
+h78.747C231.693,100.736,232.77,106.162,232.77,111.694z"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto py-6 px-3 md:px-0">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Fin-ed Investor 💰</h1>
+        <p class="text-slate-500 text-sm">Leaderboard Mentor</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="btnReload" class="btn bg-white border border-slate-200 hover:border-slate-300">🔁 โหลดข้อมูลใหม่</button>
+        <span id="lastSync" class="text-xs text-slate-400 self-center">ยังไม่ซิงก์</span>
+      </div>
+    </div>
+
+    <!-- 3 กล่อง -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+      <div class="card p-4">
+        <h2 class="font-semibold mb-3">1) เพิ่มผู้เรียน</h2>
+        <input id="userName" type="text" class="input mb-3" placeholder="ชื่อเล่น">
+        <input id="userDept" type="text" class="input mb-3" placeholder="ภาค / ฝ่าย">
+        <button id="btnAddUser" class="btn btn-primary w-full">+ เพิ่มผู้เรียน</button>
+        <p id="userMsg" class="text-xs mt-2 text-slate-400"></p>
+      </div>
+
+      <div class="card p-4">
+        <h2 class="font-semibold mb-3">2) เพิ่มคลาสเรียน </h2>
+        <input id="className" type="text" class="input mb-3" placeholder="ชื่อคลาสเรียน">
+        <input id="adminPass" type="password" class="input mb-3" placeholder="รหัสผ่านแอดมิน">
+        <button id="btnAddClass" class="btn bg-indigo-500 hover:bg-indigo-600 text-white w-full">+ เพิ่มคลาส</button>
+        <p id="classMsg" class="text-xs mt-2 text-slate-400"></p>
+      </div>
+
+      <div class="card p-4">
+        <h2 class="font-semibold mb-3">3) บันทึกเรียนจบ</h2>
+        <select id="selUser" class="input mb-3"></select>
+        <select id="selClass" class="input mb-3"></select>
+        <button id="btnRecord" class="btn bg-emerald-500 hover:bg-emerald-600 text-white w-full">✅ บันทึกเรียนจบ</button>
+        <p id="recordMsg" class="text-xs mt-2 text-slate-400"></p>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card p-4 mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">📊 Leaderboard</h2>
+        <span class="badge" id="totalUsersBadge">0 ผู้เรียน</span>
+      </div>
+      <div class="chart-shell">
+        <canvas id="leaderboardChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card p-4 mb-10 overflow-x-auto">
+      <h2 class="font-semibold mb-3 flex items-center gap-2">📄 รายการบันทึกล่าสุด</h2>
+      <table class="min-w-full text-left text-sm table-fixed">
+        <thead class="bg-slate-50/80 border border-slate-100 rounded-lg">
+          <tr class="text-slate-500 text-[0.72rem] uppercase tracking-wide">
+            <th class="py-2.5 px-2 rounded-l-lg w-[18%]">ผู้เรียน</th>
+            <th class="py-2.5 px-2 w-[12%]">ภาค/ฝ่าย</th>
+            <th class="py-2.5 px-2 w-[10%]">คลาส</th>
+            <th class="py-2.5 px-2 w-[22%]">เวลาบันทึก</th>
+            <th class="py-2.5 px-2 text-right rounded-r-lg w-[12%]">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="logBody" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal แก้ไข -->
+  <div id="editModal" class="hidden modal-backdrop">
+    <div class="bg-white rounded-xl shadow-lg w-[90%] max-w-md p-5">
+      <h3 class="font-semibold mb-3">แก้ไขข้อมูลการเรียนจบ</h3>
+      <input type="hidden" id="editId">
+      <select id="editUser" class="input mb-3"></select>
+      <select id="editClass" class="input mb-3"></select>
+      <div class="flex justify-end gap-2">
+        <button id="btnCloseEdit" class="btn bg-slate-100">ยกเลิก</button>
+        <button id="btnSaveEdit" class="btn bg-emerald-500 hover:bg-emerald-600 text-white">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ขอรหัส -->
+  <div id="authModal" class="hidden modal-backdrop">
+    <div class="bg-white rounded-xl shadow-lg w-[90%] max-w-sm p-5">
+      <h3 class="font-semibold mb-3" id="authTitle">ยืนยันด้วยรหัสแอดมิน</h3>
+      <p class="text-sm text-slate-500 mb-3">ใส่รหัสเพื่อดำเนินการ</p>
+      <input type="password" id="authInput" class="input mb-3" placeholder="รหัสแอดมิน">
+      <p id="authMsg" class="text-xs text-rose-500 mb-3 hidden">รหัสไม่ถูกต้อง</p>
+      <div class="flex justify-end gap-2">
+        <button id="btnAuthCancel" class="btn bg-slate-100">ยกเลิก</button>
+        <button id="btnAuthOk" class="btn bg-slate-900 text-white">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ยืนยันการลบ -->
+  <div id="confirmDeleteModal" class="hidden modal-backdrop">
+    <div class="bg-white rounded-xl shadow-lg w-[90%] max-w-sm p-5">
+      <h3 class="font-semibold mb-3 text-rose-600">ลบรายการนี้?</h3>
+      <p class="text-sm text-slate-500 mb-4">คุณต้องการลบรายการเรียนจบนี้ออกจากระบบใช่ไหม</p>
+      <div class="flex justify-end gap-2">
+        <button id="btnConfirmDeleteCancel" class="btn bg-slate-100">ยกเลิก</button>
+        <button id="btnConfirmDeleteOk" class="btn bg-rose-500 hover:bg-rose-600 text-white">ยืนยันการลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwipxYc-9Gg_PFNcfe8gBFeKUaswdaqDQedmFs2wB25nZtmM2rn2L3SUGT_NHhxi9e56g/exec";
+    const ADMIN_CODE = "1112";
+
+    let chartRef = null;
+    let cacheUsers = [], cacheClasses = [], cacheCompletions = [];
+    let pendingAction = null;
+    let pendingId = null;
+
+    Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
+    Chart.defaults.font.size = 12;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadAllData();
+      document.getElementById("btnReload").onclick = loadAllData;
+      document.getElementById("btnAddUser").onclick = addUser;
+      document.getElementById("btnAddClass").onclick = addClass;
+      document.getElementById("btnRecord").onclick = recordCompletion;
+
+      document.getElementById("btnCloseEdit").onclick = () => document.getElementById("editModal").classList.add("hidden");
+      document.getElementById("btnSaveEdit").onclick = saveEdit;
+      document.getElementById("btnAuthCancel").onclick = closeAuthModal;
+      document.getElementById("btnAuthOk").onclick = confirmAuth;
+      document.getElementById("btnConfirmDeleteCancel").onclick = () => {
+        document.getElementById("confirmDeleteModal").classList.add("hidden");
+        pendingAction = null; pendingId = null;
+      };
+      document.getElementById("btnConfirmDeleteOk").onclick = doDeleteAfterConfirm;
+
+      // เมื่อเปลี่ยนผู้เรียน ให้กรองรายการคลาสที่ยังไม่เคยเรียน
+      document.getElementById("selUser").addEventListener('change', updateClassOptionsForSelectedUser);
+    });
+
+    function showLoader(){ document.getElementById("globalLoader").style.display = "flex"; }
+    function hideLoader(){ document.getElementById("globalLoader").style.display = "none"; }
+
+    function loadAllData(){
+      showLoader();
+      setSyncStatus("กำลังโหลด...");
+      const cbName = "cb_" + Date.now();
+      window[cbName] = function(data){
+        delete window[cbName];
+        document.body.removeChild(script);
+
+        cacheUsers = data.users || [];
+        cacheClasses = data.classes || [];
+        cacheCompletions = data.completions || [];
+
+        renderUsers();
+        renderClassesBase();            // เตรียม option พื้นฐานสำหรับ edit modal
+        updateClassOptionsForSelectedUser(); // และกรองสำหรับกล่องบันทึก (3)
+
+        renderChart();
+        renderLog();
+        setSyncStatus("อัปเดตล่าสุด: " + new Date().toLocaleString("th-TH"));
+        hideLoader();
+      };
+      const script = document.createElement("script");
+      script.src = GAS_URL + "?action=GET_ALL&callback=" + cbName;
+      script.onerror = function(){
+        setSyncStatus("โหลดไม่สำเร็จ (เช็ก Deploy)");
+        delete window[cbName];
+        document.body.removeChild(script);
+        hideLoader();
+      };
+      document.body.appendChild(script);
+    }
+
+    function setSyncStatus(t){ document.getElementById("lastSync").textContent = t; }
+
+    // === Users ===
+    function renderUsers(){
+      const selUser = document.getElementById("selUser");
+      const editUser = document.getElementById("editUser");
+      selUser.innerHTML = ""; editUser.innerHTML = "";
+
+      const ph1 = new Option(cacheUsers.length ? "เลือกผู้เรียน" : "ยังไม่มีผู้เรียน","");
+      const ph2 = new Option(cacheUsers.length ? "เลือกผู้เรียน" : "ยังไม่มีผู้เรียน","");
+
+      selUser.appendChild(ph1); editUser.appendChild(ph2);
+
+      cacheUsers.forEach(u=>{
+        selUser.appendChild(new Option(u.name + (u.dept ? " · "+u.dept:""), u.id));
+        editUser.appendChild(new Option(u.name + (u.dept ? " · "+u.dept:""), u.id));
+      });
+
+      document.getElementById("totalUsersBadge").textContent = cacheUsers.length + " ผู้เรียน";
+    }
+
+    // === Classes (ฐาน) ===
+    function renderClassesBase(){
+      // สำหรับ edit modal แสดงทุกคลาสเต็ม
+      const editClass = document.getElementById("editClass");
+      editClass.innerHTML = "";
+      editClass.appendChild(new Option(cacheClasses.length ? "เลือกคลาสเรียน" : "ยังไม่มีคลาส",""));
+      cacheClasses.forEach(c=> editClass.appendChild(new Option(c.name, c.id)));
+    }
+
+    // === Filter: แสดงเฉพาะคลาสที่ยังไม่เคยบันทึกของผู้เรียนที่เลือก ===
+    function updateClassOptionsForSelectedUser(){
+      const selUser = document.getElementById("selUser");
+      const selClass = document.getElementById("selClass");
+      const userId = selUser.value;
+
+      selClass.innerHTML = "";
+
+      if(!userId){
+        selClass.appendChild(new Option("เลือกผู้เรียนก่อน",""));
+        return;
+      }
+
+      // set ของคลาสที่ user นี้เคยบันทึกแล้ว
+      const completedSet = new Set(
+        cacheCompletions
+          .filter(x => String(x.userId) === String(userId))
+          .map(x => String(x.classId))
+      );
+
+      // คลาสที่ยังไม่เคยบันทึก
+      const remaining = cacheClasses.filter(c => !completedSet.has(String(c.id)));
+
+      if(remaining.length === 0){
+        const op = new Option("ผู้เรียนคนนี้บันทึกครบทุกคลาสแล้ว", "");
+        op.disabled = true;
+        selClass.appendChild(op);
+      }else{
+        selClass.appendChild(new Option("เลือกคลาสเรียน",""));
+        remaining.forEach(c => selClass.appendChild(new Option(c.name, c.id)));
+      }
+    }
+
+    // === Leaderboard ===
+    function buildLeaderboardData(){
+      const countMap = {}, timeMap = {};
+      cacheCompletions.forEach(c=>{
+        countMap[c.userId] = (countMap[c.userId] || 0) + 1;
+        timeMap[c.userId] = c.timestamp ? new Date(c.timestamp).getTime() : 0;
+      });
+      const arr = cacheUsers.map(u=>({
+        name:u.name, dept:u.dept, count:countMap[u.id]||0, last:timeMap[u.id]||0
+      }));
+      arr.sort((a,b)=> b.count - a.count || b.last - a.last);
+      return arr;
+    }
+
+    function renderChart(){
+      const data = buildLeaderboardData();
+      const labels = data.map(x => x.name + (x.dept ? " ("+x.dept+")" : ""));
+      const values = data.map(x => x.count);
+
+      const isMobile = window.innerWidth < 768;
+      const rowHeight = isMobile ? 34 : 40;
+      const padding = isMobile ? 40 : 50;
+      let targetHeight = labels.length * rowHeight + padding;
+      const minH = 180, maxH = 420;
+      targetHeight = Math.max(minH, Math.min(maxH, targetHeight));
+
+      const canvas = document.getElementById("leaderboardChart");
+      canvas.style.height = targetHeight + "px";
+
+      if (chartRef) chartRef.destroy();
+      chartRef = new Chart(canvas, {
+        type: "bar",
+        data: { labels, datasets: [{ data: values, label: "คอร์สเรียนจบ", backgroundColor: "#6366f1", borderRadius: 6, barPercentage: .7, categoryPercentage: .7 }]},
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins:{ legend:{ display:false } },
+          scales:{ x:{ beginAtZero:true, ticks:{ font:{ size:11 } } },
+                   y:{ ticks:{ font:{ size:11 }, callback:function(v){ const l=this.getLabelForValue(v); return l.length>22?l.slice(0,22)+"…":l; } } } }
+        }
+      });
+    }
+
+    // === Logs ===
+    function renderLog(){
+      const tb = document.getElementById("logBody");
+      tb.innerHTML = "";
+      const sorted = [...cacheCompletions].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+      sorted.forEach(r=>{
+        const u = cacheUsers.find(x=>x.id==r.userId);
+        const c = cacheClasses.find(x=>x.id==r.classId);
+        tb.insertAdjacentHTML("beforeend", `
+          <tr class="hover:bg-slate-50/40 transition">
+            <td class="py-2.5 px-2 text-sm text-slate-800 truncate">${u?u.name:"-"}</td>
+            <td class="py-2.5 px-2 text-sm text-slate-500 truncate">${u&&u.dept?u.dept:"-"}</td>
+            <td class="py-2.5 px-2 text-sm text-slate-800 truncate">${c?c.name:"-"}</td>
+            <td class="py-2.5 px-2 text-[0.68rem] text-slate-500 whitespace-nowrap">
+              ${r.timestamp?new Date(r.timestamp).toLocaleString("th-TH"):"-"}
+            </td>
+            <td class="py-2.5 px-2">
+              <div class="flex justify-end gap-2">
+                <button class="table-action edit" onclick="requestAuth('edit','${r.id}')">แก้ไข</button>
+                <button class="table-action delete" onclick="requestAuth('delete','${r.id}')">ลบ</button>
+              </div>
+            </td>
+          </tr>
+        `);
+      });
+    }
+
+    // === Actions ===
+    async function addUser(){
+      const n = userName.value.trim();
+      const d = userDept.value.trim();
+      if(!n){ userMsg.textContent="กรอกชื่อก่อน"; return; }
+      userMsg.textContent="กำลังบันทึก..."; showLoader();
+      const res = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"ADD_USER",name:n,dept:d})});
+      const j = await res.json();
+      if(j.success){ userMsg.textContent="เพิ่มแล้ว"; userName.value=""; userDept.value=""; loadAllData(); }
+      else{ userMsg.textContent="ไม่สำเร็จ"; hideLoader(); }
+    }
+
+    async function addClass(){
+      const n = className.value.trim();
+      const p = adminPass.value.trim();
+      if(p !== ADMIN_CODE){ classMsg.textContent="รหัสไม่ถูกต้อง"; return; }
+      if(!n){ classMsg.textContent="กรอกชื่อคลาสก่อน"; return; }
+      classMsg.textContent="กำลังบันทึก..."; showLoader();
+      const res = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"ADD_CLASS",name:n})});
+      const j = await res.json();
+      if(j.success){ classMsg.textContent="เพิ่มคลาสแล้ว"; className.value=""; adminPass.value=""; loadAllData(); }
+      else{ classMsg.textContent="ไม่สำเร็จ"; hideLoader(); }
+    }
+
+    // ป้องกันซ้ำ: เช็คก่อนยิง POST
+    async function recordCompletion(){
+      const u = selUser.value;
+      const c = selClass.value;
+      if(!u || !c){ recordMsg.textContent="กรุณาเลือกผู้เรียนและคลาส"; return; }
+
+      // ชั้นที่ 1: ตรวจซ้ำฝั่ง client
+      const isDup = cacheCompletions.some(x => String(x.userId)===String(u) && String(x.classId)===String(c));
+      if(isDup){
+        recordMsg.textContent = "ผู้เรียนคนนี้บันทึกคลาสนี้ไปแล้ว";
+        return;
+      }
+
+      recordMsg.textContent="กำลังบันทึก..."; showLoader();
+      const res = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"ADD_COMPLETION",userId:u,classId:c})});
+      const j = await res.json();
+
+      // ชั้นที่ 2: (แนะนำ) ให้ฝั่ง GAS กันซ้ำด้วย หาก GAS ตอบกลับว่า duplicate ก็โชว์ข้อความนี้
+      if(j.success){
+        recordMsg.textContent="บันทึกแล้ว";
+        loadAllData();
+      }else{
+        recordMsg.textContent = j.message || "ไม่สำเร็จ";
+        hideLoader();
+      }
+    }
+
+    function requestAuth(action, id){
+      pendingAction = action; pendingId = id;
+      document.getElementById("authTitle").textContent = action === "edit" ? "ยืนยันรหัสเพื่อแก้ไข" : "ยืนยันรหัสเพื่อลบรายการ";
+      document.getElementById("authInput").value = "";
+      document.getElementById("authMsg").classList.add("hidden");
+      document.getElementById("authModal").classList.remove("hidden");
+      setTimeout(()=>document.getElementById("authInput").focus(),50);
+    }
+    function closeAuthModal(){ document.getElementById("authModal").classList.add("hidden"); }
+    function confirmAuth(){
+      const pass = document.getElementById("authInput").value.trim();
+      if(pass !== ADMIN_CODE){ document.getElementById("authMsg").classList.remove("hidden"); return; }
+      document.getElementById("authModal").classList.add("hidden");
+      if(pendingAction === "edit"){ openEdit(pendingId); pendingAction=null; pendingId=null; }
+      else if(pendingAction === "delete"){ document.getElementById("confirmDeleteModal").classList.remove("hidden"); }
+    }
+
+    async function doDeleteAfterConfirm(){
+      const id = pendingId;
+      document.getElementById("confirmDeleteModal").classList.add("hidden");
+      showLoader();
+      const res = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"DELETE_COMPLETION",id})});
+      const j = await res.json();
+      if(j.success){ loadAllData(); } else { hideLoader(); }
+      pendingAction = null; pendingId = null;
+    }
+
+    function openEdit(id){
+      const r = cacheCompletions.find(x=>x.id==id); if(!r) return;
+      editId.value = id; editUser.value = r.userId || ""; editClass.value = r.classId || "";
+      document.getElementById("editModal").classList.remove("hidden");
+    }
+
+    async function saveEdit(){
+      const id = editId.value, u = editUser.value, c = editClass.value;
+      showLoader();
+      const res = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"EDIT_COMPLETION",id,userId:u,classId:c})});
+      const j = await res.json();
+      if(j.success){ document.getElementById("editModal").classList.add("hidden"); loadAllData(); }
+      else{ hideLoader(); }
+    }
+  </script>
+</body>
+</html>
